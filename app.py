@@ -1,8 +1,10 @@
+import datetime
 from time import sleep
 
 import DB
 
 #Declare
+
 array_cdCapecchi=[] #array per la gestione dei codici ricetta presenti nel db Ricette dell app CapeApp
 array_cdMTS=[] #array per la gestione dei codici ricetta presenti nel db di MTS
 array_nuoveRicette=[] #array per la gestione delle nuove ricette
@@ -16,9 +18,178 @@ query_capecchi_ricetta = """SELECT *
   where CDrecipe=? and Cd_Ar=? and dat_obsoleto_ingredient is null"""
 query_capecchu_ing=""""""
 
+
 def modificheInsert(cdRicetta,stato,messaggio):
     print(cdRicetta,stato,messaggio)
+    query_insert="""
+    INSERT INTO Ricette.[Application].[Items]
+           (
+           [CdRecipe]
+           ,[Cd_Ar]
+           ,[CdRecipeGroup]
+           ,[DRecipeGroup]
+           ,[DtRecipeObsoleta]
+           ,[CdListRif]
+           ,[CdArt]
+           ,[DArt]
+           ,[ArtUm]
+           ,[QtaRecipe]
+           ,[Estrazione]
+           ,[locked]
+           ,[Revisione]
+           ,[Gestione]
+           ,[NotaGestione])
+     VALUES
+           
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,"""
+    query_get_ricetta="""
+    select distinct [CdRecipe]
+           ,[CdArt]
+           ,[CdRecipeGroup]
+           ,[DRecipeGroup]
+           ,[DtRecipeObsoleta]
+           ,[CdListRif]
+           ,[CdArt]
+           ,[DArt]
+           ,[ArtUm]
+           ,[QtaRecipe] from MTS.Origine.vRicette where CDrecipe=?"""
+    query_get_ingredienti="""
+    select [CDrecipe], CdArt, [NFase], [DFase], [PrgIngOrder], [CdIng], [DIng], st.[Fornitore], cf.[DCF], [RecipeUM], [IngUm], [RecipeIngUM], [QtaIng], [PCaloPesoIng], [qta_ingredient_tot_net], [prz_ingredient_um], [IngMltUMKG], [PrzIngKG], [flg_weight_enable], [dat_obsoleto_ingredient], [FAS], GETDATE(), 1, [Revisione]
+    from MTS.Origine.vRicette
+    left join SchedeTecniche.Schede.Items st on st.Articolo=CdIng and st.Preferenziale=1
+    left join Arca.PowerBI.ClientiFornitori as cf on cf.CdCF=st.Fornitore
+    where CdRecipe=?
+    """
+    query_get_max_versione="""
+    select max(Revisione) 
+    from Ricette.Application.Items 
+    where CdRecipe=?"""
+    query_insert_ingredienti="""
+    INSERT INTO ricette.[Application].[ItemsDetails]
+           (
+           [CDrecipe]
+           ,[Cd_Ar]
+           ,[NFase]
+           ,[DFase]
+           ,[PrgIngOrder]
+           ,[CdIng]
+           ,[DIng]
+           ,[Fornitore]
+           ,[dcf]
+           ,[RecipeUM]
+           ,[IngUm]
+           ,[RecipeIngUM]
+           ,[QtaIng]
+           ,[PCaloPesoIng]
+           ,[qta_ingredient_tot_net]
+           ,[prz_ingredient_um]
+           ,[IngMltUMKG]
+           ,[PrzIngKG]
+           ,[flg_weight_enable]
+           ,[dat_obsoleto_ingredient]
+           ,[FAS]
+           ,[Estrazione]
+           ,[Versione]
+           ,[Revisione])
+     VALUES
+          (
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?)"""
+    if controllaPending(cdRicetta)== False:
+        if stato == "N":
+            Ricetta = DB.ReadData(query_get_ricetta, (cdRicetta))
+            print(f"inserimento ricetta {Ricetta[0][0]}")
+            print(Ricetta[0])
+            ingredienti = DB.ReadData(query_get_ingredienti, (cdRicetta))
+            DB.Execute(query_insert,(Ricetta[0][1],Ricetta[0][2],Ricetta[0][3],Ricetta[0][4],Ricetta[0][5],Ricetta[0][6],Ricetta[0][7],Ricetta[0][8],Ricetta[0][9],datetime.date.today(),1,1,stato,"Nuova ricetta inserita nel sistema"))
+            for i in ingredienti:
+                DB.Execute(query_insert_ingredienti,(
+                    i[0],
+                    i[1],
+                    i[2],
+                    i[3],
+                    i[4],
+                    i[5],
+                    i[6],
+                    i[7],
+                    i[8],
+                    i[9],
+                    i[10],
+                    i[11],
+                    i[12],
+                    i[13],
+                    i[14],
+                    i[15],
+                    i[16],
+                    i[17],
+                    i[18],
+                    i[19],
+                    i[20],
+                    datetime.date.today(),
+                    1,
+                    i[21]
 
+                ))
+        else:
+
+            Revisione=DB.ReadData(query_get_ricetta,(cdRicetta))
+            RevisioneNuova=int(Revisione[0][0])+1
+            Ricetta=DB.ReadData(query_get_ricetta,(cdRicetta))
+            print(f"inserimento ricetta {Ricetta[0][0]}")
+            ingredienti=DB.ReadData(query_get_ingredienti,(cdRicetta))
+            for i in ingredienti:
+                print(i)
+
+    else:
+        print(f"Ricetta {cdRicetta}:Gia presente un altra modifica da gestire")
+
+
+def controllaPending(cdRecipe):
+    query_controlla_pending = """
+        select * from Ricette.application.items where cdrecipe=?
+        """
+    Ricetta=DB.ReadData(query_controlla_pending,(cdRecipe))
+    risposta=False
+    for r in Ricetta:
+        if r[13]!="A" or r[13]!="G":
+            rirposta=True
+    return risposta
 
 
 print("inizio controllo modifiche ricette")
@@ -50,8 +221,6 @@ for rc in ricetteMTS:
     if rc[0] not in array_cdCapecchi:
         array_nuoveRicette.append(rc[0])
         modificheInsert(rc[0],"N","Nuova")
-print("Ricette Nuove    ", len(array_nuoveRicette),array_nuoveRicette)
-print("Ricette Obsolete ", len(array_obsoleteRicette),array_obsoleteRicette)
 
 for rc in ricetteCapecchi:
     if rc[1] not in array_obsoleteRicette:
@@ -93,7 +262,7 @@ for rc in ricetteCapecchi:
 
             if modifiche == True:
                 print(f"RICETTA: {rc[1]}")
-                print(messaggio)
+                modificheInsert(rc[1], "M", messaggio)
 
 
 
