@@ -17,6 +17,31 @@ query_capecchi_ricetta = """SELECT *
   FROM [Ricette].[Application].[ItemsDetails]
   where CDrecipe=? and Cd_Ar=? and dat_obsoleto_ingredient is null"""
 query_capecchu_ing=""""""
+query_insert_lingueIng="""
+ insert into Ricette.Application.LingueIngredienti
+select distinct 
+		?
+		, ?
+		, ?
+		, ?
+		, '' as Ingredienti_IT 
+		, '' as Ingredienti_EN
+		, '' as Ingredienti_FR
+		, '' as Ingredienti_DE
+		, '' as Ingredienti_ES
+		, 'Latte|off,Cereali|off,Crostacei|off,Uova|off,Pesce|off,Arachidi|off,Soia|off,Frutta a guscio|off,Sedano|off,Senape|off,Sesamo|off,Solfiti|off,Lupini|off,Molluschi|off' as Allergeni
+		, 'Latte|off,Cereali|off,Crostacei|off,Uova|off,Pesce|off,Arachidi|off,Soia|off,Frutta a guscio|off,Sedano|off,Senape|off,Sesamo|off,Solfiti|off,Lupini|off,Molluschi|off' as AllergeniFinali
+		, '' as Nutrizionali_IT
+		, '' as Nutrizionali_EN
+		, '' as Nutrizionali_FR
+		, '' as Nutrizionali_DE
+		, '' as Nutrizionali_ES
+		, '' as Nutrizionali_Porz_IT
+		, '' as Nutrizionali_Porz_EN
+		, '' as Nutrizionali_Porz_FR
+		, '' as Nutrizionali_Porz_DE
+		, '' as Nutrizionali_Porz_ES
+		,'' as TestoAllergeni"""
 
 
 def modificheInsert(cdRicetta,stato,messaggio):
@@ -41,6 +66,7 @@ def modificheInsert(cdRicetta,stato,messaggio):
            ,[NotaGestione])
      VALUES
            
+           (?,
            ?,
            ?,
            ?,
@@ -54,8 +80,7 @@ def modificheInsert(cdRicetta,stato,messaggio):
            ?,
            ?,
            ?,
-           ?,
-           ?,"""
+           ?)"""
     query_get_ricetta="""
     select distinct [CdRecipe]
            ,[CdArt]
@@ -137,7 +162,8 @@ def modificheInsert(cdRicetta,stato,messaggio):
             print(f"inserimento ricetta {Ricetta[0][0]}")
             print(Ricetta[0])
             ingredienti = DB.ReadData(query_get_ingredienti, (cdRicetta))
-            DB.Execute(query_insert,(Ricetta[0][1],Ricetta[0][2],Ricetta[0][3],Ricetta[0][4],Ricetta[0][5],Ricetta[0][6],Ricetta[0][7],Ricetta[0][8],Ricetta[0][9],datetime.date.today(),1,1,stato,"Nuova ricetta inserita nel sistema"))
+            DB.Execute(query_insert,(Ricetta[0][0],Ricetta[0][1],Ricetta[0][2],Ricetta[0][3],Ricetta[0][4],Ricetta[0][5],Ricetta[0][6],Ricetta[0][7],Ricetta[0][8],Ricetta[0][9],datetime.date.today(),1,1,stato,"Nuova ricetta inserita nel sistema"))
+            DB.Execute(query_insert_lingueIng,(Ricetta[0][1],Ricetta[0][0],1,datetime.date.today()))
             for i in ingredienti:
                 DB.Execute(query_insert_ingredienti,(
                     i[0],
@@ -187,8 +213,9 @@ def controllaPending(cdRecipe):
     Ricetta=DB.ReadData(query_controlla_pending,(cdRecipe))
     risposta=False
     for r in Ricetta:
-        if r[13]!="A" or r[13]!="G":
-            rirposta=True
+        if r[14]!='A' and r[14]!='G':
+            return True
+
     return risposta
 
 
